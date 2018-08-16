@@ -33,19 +33,29 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -55,6 +65,11 @@ import com.google.android.gms.vision.MultiProcessor;
 import com.google.android.gms.vision.Tracker;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 import spinc.ar_coreSample.R;
@@ -62,7 +77,7 @@ import spinc.ar_coreSample.facespotter.ui.camera.CameraSourcePreview;
 import spinc.ar_coreSample.facespotter.ui.camera.GraphicOverlay;
 
 
-public final class FaceActivity extends AppCompatActivity {
+public final class FaceActivity extends AppCompatActivity implements View.OnClickListener{
 
   private static final String TAG = "FaceActivity";
 
@@ -73,11 +88,11 @@ public final class FaceActivity extends AppCompatActivity {
   private CameraSource mCameraSource = null;
   private CameraSourcePreview mPreview;
   private GraphicOverlay mGraphicOverlay;
+  private ImageButton button;
   private boolean mIsFrontFacing = true;
+  private RelativeLayout topLayout  ;
 
 
-  // Activity event handlers
-  // =======================
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -88,8 +103,11 @@ public final class FaceActivity extends AppCompatActivity {
 
     mPreview = (CameraSourcePreview) findViewById(R.id.preview);
     mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
-    final ImageButton button = (ImageButton) findViewById(R.id.flipButton);
+     button = (ImageButton) findViewById(R.id.flipButton);
+    topLayout = (RelativeLayout) findViewById(R.id.topLayout);
     button.setOnClickListener(mSwitchCameraButtonListener);
+
+    mPreview.setOnClickListener(this);
 
     if (savedInstanceState != null) {
       mIsFrontFacing = savedInstanceState.getBoolean("IsFrontFacing");
@@ -102,6 +120,17 @@ public final class FaceActivity extends AppCompatActivity {
       createCameraSource();
     } else {
       requestCameraPermission();
+    }
+  }
+
+  @Override
+  public void onClick(View view) {
+    switch (view.getId()){
+      case R.id.preview :
+        button.setVisibility(View.GONE);
+//        captureScreen(topLayout);
+         takeImage();
+        break;
     }
   }
 
@@ -313,6 +342,161 @@ public final class FaceActivity extends AppCompatActivity {
       }
     }
     return detector;
+  }
+
+  private void takeImage() {
+    try{
+      //openCamera(CameraInfo.CAMERA_FACING_BACK);
+      //releaseCameraSource();
+      //releaseCamera();
+      //openCamera(CameraInfo.CAMERA_FACING_BACK);
+      //setUpCamera(camera);
+      //Thread.sleep(1000);
+      mCameraSource.takePicture(null, new CameraSource.PictureCallback() {
+
+        private File imageFile;
+        @Override
+        public void onPictureTaken(byte[] bytes) {
+          try {
+            // convert byte array into bitmap
+            Bitmap loadedImage = null;
+            Bitmap rotatedBitmap = null;
+            loadedImage = BitmapFactory.decodeByteArray(bytes, 0,
+                    bytes.length);
+
+            // rotate Image
+            Matrix rotateMatrix = new Matrix();
+            rotatedBitmap = Bitmap.createBitmap(loadedImage, 0, 0,
+                    loadedImage.getWidth(), loadedImage.getHeight(),
+                    rotateMatrix, false);
+            String state = Environment.getExternalStorageState();
+            File folder = null;
+            if (state.contains(Environment.MEDIA_MOUNTED)) {
+              folder = new File(Environment
+                      .getExternalStorageDirectory() + "/Demo");
+            } else {
+              folder = new File(Environment
+                      .getExternalStorageDirectory() + "/Demo");
+            }
+
+            boolean success = true;
+            if (!folder.exists()) {
+              success = folder.mkdirs();
+            }
+            if (success) {
+              java.util.Date date = new java.util.Date();
+              imageFile = new File(folder.getAbsolutePath()
+                      + File.separator
+                      //+ new Timestamp(date.getTime()).toString()
+                      + "Image.jpg");
+
+              imageFile.createNewFile();
+            } else {
+              Toast.makeText(getBaseContext(), "Image Not saved",
+                      Toast.LENGTH_SHORT).show();
+              return;
+            }
+
+            ByteArrayOutputStream ostream = new ByteArrayOutputStream();
+
+            // save image into gallery
+            rotatedBitmap = resize(rotatedBitmap, 800, 600);
+            rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, ostream);
+
+            FileOutputStream fout = new FileOutputStream(imageFile);
+            fout.write(ostream.toByteArray());
+            fout.close();
+            ContentValues values = new ContentValues();
+
+            values.put(MediaStore.Images.Media.DATE_TAKEN,
+                    System.currentTimeMillis());
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+            values.put(MediaStore.MediaColumns.DATA,
+                    imageFile.getAbsolutePath());
+
+            FaceActivity.this.getContentResolver().insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+            setResult(Activity.RESULT_OK); //add this
+            finish();
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        }
+      });
+
+    }catch (Exception ex){
+      Toast.makeText(this, "Error al capturar fotografia!", Toast.LENGTH_SHORT).show();
+    }
+
+  }
+
+  /**
+   * Metodo para cambiar el tamaño de la fotografia una resolucion predeterminada.
+   *
+   * @param image
+   * @param maxWidth
+   * @param maxHeight
+   * @return
+   */
+  private Bitmap resize(Bitmap image, int maxWidth, int maxHeight) {
+    if (maxHeight > 0 && maxWidth > 0) {
+      int width = image.getWidth();
+      int height = image.getHeight();
+      float ratioBitmap = (float) width / (float) height;
+      float ratioMax = (float) maxWidth / (float) maxHeight;
+
+      int finalWidth = maxWidth;
+      int finalHeight = maxHeight;
+      if (ratioMax > 1) {
+        finalWidth = (int) ((float) maxHeight * ratioBitmap);
+      } else {
+        finalHeight = (int) ((float) maxWidth / ratioBitmap);
+      }
+      image = Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true);
+      return image;
+    } else {
+      return image;
+    }
+  }
+
+  private void captureScreen(View rootView){
+    if (rootView!=null  ) {
+
+      rootView.setDrawingCacheEnabled(true);
+      Bitmap bitmap = Bitmap.createBitmap(rootView.getDrawingCache());
+      if (bitmap!=null) {
+
+        /**
+         * Save the image inside the APPLICTION folder
+         */
+        File mediaStorageDir = new File(getExternalCacheDir() + "AugmentedImage.png");
+
+        try {
+          FileOutputStream outputStream = new FileOutputStream(String.valueOf(mediaStorageDir));
+          bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+          outputStream.close();
+
+        } catch (FileNotFoundException e) {
+          e.printStackTrace();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+
+        if (mediaStorageDir!=null) {
+
+          Uri imageUri = FileProvider.getUriForFile(getApplicationContext(), getApplicationContext().getPackageName() + ".provider", mediaStorageDir);
+
+          if (imageUri!=null) {
+            Intent waIntent = new Intent(Intent.ACTION_SEND);
+            waIntent.setType("image/*");
+            waIntent.putExtra(Intent.EXTRA_STREAM, imageUri);
+            startActivity(Intent.createChooser(waIntent, "Share with"));
+          }
+        }
+      }
+    }
+    button.setVisibility(View.VISIBLE);
   }
 
 }
