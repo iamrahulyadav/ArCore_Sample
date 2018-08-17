@@ -63,6 +63,8 @@ class FaceGraphic extends GraphicOverlay.Graphic {
   private Drawable mPigNoseGraphic;
   private Drawable mMustacheGraphic;
   private Drawable mHappyStarGraphic;
+  private Drawable mChainGraphics;
+  private Drawable mEarRingGraphics;
   private Drawable mHatGraphic;
 
   // We want each iris to move independently,
@@ -83,6 +85,9 @@ class FaceGraphic extends GraphicOverlay.Graphic {
     mPigNoseGraphic = resources.getDrawable(R.drawable.pig_nose_emoji);
     mMustacheGraphic = resources.getDrawable(R.drawable.mustache);
     mHappyStarGraphic = resources.getDrawable(R.drawable.happy_star);
+    mChainGraphics = resources.getDrawable(R.drawable.chain);
+    mChainGraphics = resources.getDrawable(R.drawable.chain);
+    mEarRingGraphics = resources.getDrawable(R.drawable.earring);
     mHatGraphic = resources.getDrawable(R.drawable.red_hat);
   }
 
@@ -137,6 +142,8 @@ class FaceGraphic extends GraphicOverlay.Graphic {
     PointF detectMouthLeftPosition = faceData.getMouthLeftPosition();
     PointF detectMouthBottomPosition = faceData.getMouthBottomPosition();
     PointF detectMouthRightPosition = faceData.getMouthRightPosition();
+    PointF detectRightEarPosition = faceData.getRightEarPosition();
+    PointF detectLeftEarPosition = faceData.getRightEarPosition();
     {
       if ((detectPosition == null) ||
         (detectLeftEyePosition == null) ||
@@ -209,6 +216,11 @@ class FaceGraphic extends GraphicOverlay.Graphic {
     // Draw the mustache.
     drawMustache(canvas, noseBasePosition, mouthLeftPosition, mouthRightPosition);
 
+//    drawLeftEarRing(canvas, detectLeftEarPosition, mouthLeftPosition, mouthRightPosition);
+//    drawRightEarRing(canvas, detectRightEarPosition, mouthLeftPosition, mouthRightPosition);
+
+    // drawNecklace(canvas, noseBasePosition, mouthLeftPosition, mouthRightPosition);
+
     // Draw the hat only if the subject's head is titled at a
     // sufficiently jaunty angle.
     final float HEAD_TILT_HAT_THRESHOLD = 20.0f;
@@ -264,6 +276,66 @@ class FaceGraphic extends GraphicOverlay.Graphic {
   private void drawMustache(Canvas canvas,
                             PointF noseBasePosition,
                             PointF mouthLeftPosition, PointF mouthRightPosition) {
+    int left = (int)mouthLeftPosition.x;
+    int top = (int)noseBasePosition.y;
+    int right = (int)mouthRightPosition.x;
+    int bottom = (int)Math.min(mouthLeftPosition.y, mouthRightPosition.y);
+
+    // We need to check which camera is being used because the mustache graphic's bounds
+    // are based on the left and right corners of the mouth, from the subject's persepctive.
+    // With the front camera, the subject's left will be on the *left* side of the view,
+    // but with the back camera, the subject's left will be on the *right* side.
+    if (mIsFrontFacing) {
+      mMustacheGraphic.setBounds(left, top, right, bottom);
+    } else {
+      mMustacheGraphic.setBounds(right, top, left, bottom);
+    }
+    mMustacheGraphic.draw(canvas);
+  }
+
+  private void drawNecklace(Canvas canvas,
+                            PointF noseBasePosition,
+                            PointF mouthLeftPosition, PointF mouthRightPosition) {
+    int left = (int)mouthLeftPosition.x;
+    int top = (int)noseBasePosition.y;
+    int right = (int)mouthRightPosition.x;
+    int bottom = (int)Math.min(mouthLeftPosition.y, mouthRightPosition.y);
+
+    // We need to check which camera is being used because the mustache graphic's bounds
+    // are based on the left and right corners of the mouth, from the subject's persepctive.
+    // With the front camera, the subject's left will be on the *left* side of the view,
+    // but with the back camera, the subject's left will be on the *right* side.
+    if (mIsFrontFacing) {
+      mChainGraphics.setBounds(left, top, right, bottom);
+    } else {
+      mChainGraphics.setBounds(right, top, left, bottom);
+    }
+    mChainGraphics.draw(canvas);
+  }
+
+  private void drawLeftEarRing(Canvas canvas,
+                            PointF noseBasePosition,
+                            PointF mouthLeftPosition, PointF mouthRightPosition) {
+    int left = (int)mouthLeftPosition.x;
+    int top = (int)noseBasePosition.y;
+    int right = (int)mouthRightPosition.x;
+    int bottom = (int)Math.min(mouthLeftPosition.y, mouthRightPosition.y);
+
+    // We need to check which camera is being used because the mustache graphic's bounds
+    // are based on the left and right corners of the mouth, from the subject's persepctive.
+    // With the front camera, the subject's left will be on the *left* side of the view,
+    // but with the back camera, the subject's left will be on the *right* side.
+    if (mIsFrontFacing) {
+      mMustacheGraphic.setBounds(left, top, right, bottom);
+    } else {
+      mMustacheGraphic.setBounds(right, top, left, bottom);
+    }
+    mMustacheGraphic.draw(canvas);
+  }
+
+  private void drawRightEarRing(Canvas canvas,
+                               PointF noseBasePosition,
+                               PointF mouthLeftPosition, PointF mouthRightPosition) {
     int left = (int)mouthLeftPosition.x;
     int top = (int)noseBasePosition.y;
     int right = (int)mouthRightPosition.x;
